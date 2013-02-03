@@ -123,6 +123,18 @@ class CommitTicketUpdater(Component):
         If set to the special value <ALL>, all tickets referenced by the
         message will get a reference to the changeset.""")
 
+    commands_implements = Option('ticket', 'commit_ticket_update_commands.implements',
+        'inplement implements implemented impl',
+        """Commands that implements a tickets, as a space-separated list.""")
+
+    commands_rejects = Option('ticket', 'commit_ticket_update_commands.rejects',
+        'reject rejects rejected',
+        """Commands that rejects a tickets, as a space-separated list.""")
+
+    commands_invalidate = Option('ticket', 'commit_ticket_update_commands.rejects',
+        'invalid invalidate invalidated invalidates',
+        """Commands that close tickets with status invalid, as a space-separated list.""")
+
     check_perms = BoolOption('ticket', 'commit_ticket_update_check_perms',
         'true',
         """Check that the committer has permission to perform the requested
@@ -265,11 +277,43 @@ In [changeset:"%s"]:
         if not ticket['owner']:
             ticket['owner'] = changeset.author
 
+    def cmd_invalidate(self, ticket, changeset, perm):
+        if self.check_perms and not 'TICKET_MODIFY' in perm:
+            self.log.info("%s doesn't have TICKET_MODIFY permission for #%d",
+                          changeset.author, ticket.id)
+            return False
+        ticket['status'] = 'closed'
+        ticket['resolution'] = 'invalid'
+        if not ticket['owner']:
+            ticket['owner'] = changeset.author
+
     def cmd_refs(self, ticket, changeset, perm):
         if self.check_perms and not 'TICKET_APPEND' in perm:
             self.log.info("%s doesn't have TICKET_APPEND permission for #%d",
                           changeset.author, ticket.id)
             return False
+
+    def cmd_implements(self, ticket):
+        if self.check_perms and not 'TICKET_MODIFY' in perm:
+            self.log.info("%s doesn't have TICKET_MODIFY permission for #%d",
+                          changeset.author, ticket.id)
+            return False
+        ticket['status'] = 'implemented'
+        if ticket['reporter']:
+            ticket['owner'] = ticket['reporter']
+        if not ticket['owner']:
+            ticket['owner'] = changeset.author
+
+    def cmd_rejects(self, ticket):
+        if self.check_perms and not 'TICKET_MODIFY' in perm:
+            self.log.info("%s doesn't have TICKET_MODIFY permission for #%d",
+                          changeset.author, ticket.id)
+            return False
+        ticket['status'] = 'rejected'
+        if ticket['reporter']:
+            ticket['owner'] = ticket['reporter']
+        if not ticket['owner']:
+            ticket['owner'] = changeset.author
 
 
 class CommitTicketReferenceMacro(WikiMacroBase):
