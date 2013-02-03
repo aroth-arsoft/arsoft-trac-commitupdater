@@ -124,7 +124,7 @@ class CommitTicketUpdater(Component):
         message will get a reference to the changeset.""")
 
     commands_implements = Option('ticket', 'commit_ticket_update_commands.implements',
-        'inplement implements implemented impl',
+        'implement implements implemented impl',
         """Commands that implements a tickets, as a space-separated list.""")
 
     commands_rejects = Option('ticket', 'commit_ticket_update_commands.rejects',
