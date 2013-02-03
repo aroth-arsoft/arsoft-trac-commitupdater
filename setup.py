@@ -4,7 +4,7 @@
 
 from setuptools import setup
 
-setup(name='ARSoftTracCommitupdater',
+setup(name='arsoft-trac-commitupdater',
         version='0.1',
         description='A plugin to update tickets within Trac when certain keywords are using in commit messages.',
         author='Andreas Roth',
