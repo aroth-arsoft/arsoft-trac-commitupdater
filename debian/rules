@@ -1,0 +1,9 @@
+#!/usr/bin/make -f
+
+PYTHON2=$(shell pyversions -vr)
+
+# Don't compress .py files
+DEB_COMPRESS_EXCLUDE := .py
+
+%:
+	dh $@ --buildsystem=python_distutils --with=python2
