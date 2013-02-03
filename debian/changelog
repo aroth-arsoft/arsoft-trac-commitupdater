@@ -1,3 +1,9 @@
+arsoft-trac-commitupdater (0.2) quantal; urgency=low
+
+  * bump version number for minor fixes
+
+ -- Andreas Roth <aroth@arsoft-online.com>  Sun, 03 Feb 2013 13:37:22 +0100
+
 arsoft-trac-commitupdater (0.1) quantal; urgency=low
 
   * initial release
