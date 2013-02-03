@@ -131,7 +131,7 @@ class CommitTicketUpdater(Component):
         'reject rejects rejected',
         """Commands that rejects a tickets, as a space-separated list.""")
 
-    commands_invalidate = Option('ticket', 'commit_ticket_update_commands.rejects',
+    commands_invalidate = Option('ticket', 'commit_ticket_update_commands.invalidate',
         'invalid invalidate invalidated invalidates',
         """Commands that close tickets with status invalid, as a space-separated list.""")
 
