@@ -4,7 +4,7 @@ Priority: optional
 Homepage: http://trac.edgewall.org/wiki/CommitTicketUpdater
 Maintainer: Andreas Roth <aroth@arsoft-online.com>
 Standards-Version: 3.9.4
-Build-Depends: debhelper (>= 8), python (>= 2.7)
+Build-Depends: debhelper (>= 8), python (>= 2.7), python-setuptools
 X-Python-Version: >=2.7
 
 Package: arsoft-trac-commitupdater
