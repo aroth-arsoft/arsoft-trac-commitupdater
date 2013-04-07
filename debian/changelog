@@ -1,3 +1,9 @@
+arsoft-trac-commitupdater (0.4) quantal; urgency=low
+
+  * added commands for reject, worksforme and invalidate
+
+ -- Andreas Roth <aroth@arsoft-online.com>  Sun, 07 Apr 2013 19:53:54 +0200
+
 arsoft-trac-commitupdater (0.3) quantal; urgency=low
 
   * use python-setuptools to build package

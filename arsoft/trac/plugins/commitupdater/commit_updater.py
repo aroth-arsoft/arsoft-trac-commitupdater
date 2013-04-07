@@ -95,6 +95,22 @@ class CommitTicketUpdater(Component):
         The specified tickets are left in their current status, and the commit
         message is added to them as a comment.
 
+      implement, implements, implemented, impl::
+        The specified tickets are set to implemented and the commit message is
+        added to them as a comment.
+
+      reject, rejects, rejected::
+        The specified tickets are set to rejected and the commit message is
+        added to them as a comment.
+
+      invalid, invalidate, invalidated, invalidates::
+        The specified tickets are closed with reason set to invalid and the
+        commit message is added to added to them as a comment.
+
+      worksforme::
+        The specified tickets are closed with reason set to worksforme and the
+        commit message is added to added to them as a comment.
+
     A fairly complicated example of what you can do is with a commit message
     of:
 
@@ -134,6 +150,10 @@ class CommitTicketUpdater(Component):
     commands_invalidate = Option('ticket', 'commit_ticket_update_commands.invalidate',
         'invalid invalidate invalidated invalidates',
         """Commands that close tickets with status invalid, as a space-separated list.""")
+
+    commands_worksforme = Option('ticket', 'commit_ticket_update_commands.worksforme',
+        'worksforme',
+        """Commands that close tickets with status worksforme, as a space-separated list.""")
 
     check_perms = BoolOption('ticket', 'commit_ticket_update_check_perms',
         'true',
@@ -284,6 +304,16 @@ In [changeset:"%s"]:
             return False
         ticket['status'] = 'closed'
         ticket['resolution'] = 'invalid'
+        if not ticket['owner']:
+            ticket['owner'] = changeset.author
+
+    def cmd_worksforme(self, ticket, changeset, perm):
+        if self.check_perms and not 'TICKET_MODIFY' in perm:
+            self.log.info("%s doesn't have TICKET_MODIFY permission for #%d",
+                          changeset.author, ticket.id)
+            return False
+        ticket['status'] = 'closed'
+        ticket['resolution'] = 'worksforme'
         if not ticket['owner']:
             ticket['owner'] = changeset.author
 
