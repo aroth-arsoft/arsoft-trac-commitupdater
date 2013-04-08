@@ -331,6 +331,7 @@ In [changeset:"%s"]:
                           changeset.author, ticket.id)
             return False
         ticket['status'] = 'reopened'
+        ticket['resolution'] = ''
         ticket['owner'] = changeset.author
 
     def cmd_refs(self, ticket, changeset, perm):
