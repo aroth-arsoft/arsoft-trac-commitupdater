@@ -95,6 +95,10 @@ class CommitTicketUpdater(Component):
         The specified tickets are left in their current status, and the commit
         message is added to them as a comment.
 
+      reopen, reopens, reopened::
+        The specified tickets are reopened, and the commit message is added to
+        them as a comment.
+
       implement, implements, implemented, impl::
         The specified tickets are set to implemented and the commit message is
         added to them as a comment.
@@ -138,6 +142,10 @@ class CommitTicketUpdater(Component):
 
         If set to the special value <ALL>, all tickets referenced by the
         message will get a reference to the changeset.""")
+
+    commands_reopens = Option('ticket', 'commit_ticket_update_commands.reopen',
+        'reopen reopens reopened',
+        """Commands that close tickets, as a space-separated list.""")
 
     commands_implements = Option('ticket', 'commit_ticket_update_commands.implements',
         'implement implements implemented impl',
@@ -317,13 +325,21 @@ In [changeset:"%s"]:
         if not ticket['owner']:
             ticket['owner'] = changeset.author
 
+    def cmd_reopens(self, ticket, changeset, perm):
+        if self.check_perms and not 'TICKET_MODIFY' in perm:
+            self.log.info("%s doesn't have TICKET_MODIFY permission for #%d",
+                          changeset.author, ticket.id)
+            return False
+        ticket['status'] = 'reopened'
+        ticket['owner'] = changeset.author
+
     def cmd_refs(self, ticket, changeset, perm):
         if self.check_perms and not 'TICKET_APPEND' in perm:
             self.log.info("%s doesn't have TICKET_APPEND permission for #%d",
                           changeset.author, ticket.id)
             return False
 
-    def cmd_implements(self, ticket):
+    def cmd_implements(self, ticket, changeset, perm):
         if self.check_perms and not 'TICKET_MODIFY' in perm:
             self.log.info("%s doesn't have TICKET_MODIFY permission for #%d",
                           changeset.author, ticket.id)
@@ -334,7 +350,7 @@ In [changeset:"%s"]:
         if not ticket['owner']:
             ticket['owner'] = changeset.author
 
-    def cmd_rejects(self, ticket):
+    def cmd_rejects(self, ticket, changeset, perm):
         if self.check_perms and not 'TICKET_MODIFY' in perm:
             self.log.info("%s doesn't have TICKET_MODIFY permission for #%d",
                           changeset.author, ticket.id)
