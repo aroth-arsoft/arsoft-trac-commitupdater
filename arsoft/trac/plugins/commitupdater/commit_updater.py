@@ -163,6 +163,10 @@ class CommitTicketUpdater(Component):
         'worksforme',
         """Commands that close tickets with status worksforme, as a space-separated list.""")
 
+    commands_alreadyimplemented = Option('ticket', 'commit_ticket_update_commands.alreadyimplemented',
+        'alreadyimplemented already_implemented',
+        """Commands that close tickets with status already_implemented, as a space-separated list.""")
+
     check_perms = BoolOption('ticket', 'commit_ticket_update_check_perms',
         'true',
         """Check that the committer has permission to perform the requested
@@ -176,7 +180,7 @@ class CommitTicketUpdater(Component):
 
     ticket_prefix = '(?:#|(?:ticket|issue|bug)[: ]?)'
     ticket_reference = ticket_prefix + '[0-9]+'
-    ticket_command = (r'(?P<action>[A-Za-z]*)\s*.?\s*'
+    ticket_command = (r'(?P<action>[A-Za-z\_]*)\s*.?\s*'
                       r'(?P<ticket>%s(?:(?:[, &]*|[ ]?and[ ]?)%s)*)' %
                       (ticket_reference, ticket_reference))
 
@@ -259,8 +263,12 @@ In [changeset:"%s"]:
                     ticket = Ticket(self.env, tkt_id)
                     ticket_perm = perm(ticket.resource)
                     for cmd in cmds:
-                        if cmd(ticket, changeset, ticket_perm) is not False:
-                            save = True
+                        if self.check_perms and not 'TICKET_MODIFY' in ticket_perm:
+                            self.log.info("%s doesn't have TICKET_MODIFY permission for #%d",
+                                        changeset.author, ticket.id)
+                        else:
+                            if cmd(ticket, changeset, ticket_perm):
+                                save = True
                     if save:
                         ticket.save_changes(changeset.author, comment, date)
                 if save:
@@ -296,72 +304,64 @@ In [changeset:"%s"]:
     # The ticket isn't updated if all extracted commands return False.
 
     def cmd_close(self, ticket, changeset, perm):
-        if self.check_perms and not 'TICKET_MODIFY' in perm:
-            self.log.info("%s doesn't have TICKET_MODIFY permission for #%d",
-                          changeset.author, ticket.id)
-            return False
-        ticket['status'] = 'closed'
-        ticket['resolution'] = 'fixed'
-        if not ticket['owner']:
-            ticket['owner'] = changeset.author
+        if ticket['status'] != 'closed':
+            ticket['status'] = 'closed'
+            ticket['resolution'] = 'fixed'
+            if not ticket['owner']:
+                ticket['owner'] = changeset.author
+        return True
 
     def cmd_invalidate(self, ticket, changeset, perm):
-        if self.check_perms and not 'TICKET_MODIFY' in perm:
-            self.log.info("%s doesn't have TICKET_MODIFY permission for #%d",
-                          changeset.author, ticket.id)
-            return False
-        ticket['status'] = 'closed'
-        ticket['resolution'] = 'invalid'
-        if not ticket['owner']:
-            ticket['owner'] = changeset.author
+        if ticket['status'] != 'closed':
+            ticket['status'] = 'closed'
+            ticket['resolution'] = 'invalid'
+            if not ticket['owner']:
+                ticket['owner'] = changeset.author
+        return True
 
     def cmd_worksforme(self, ticket, changeset, perm):
-        if self.check_perms and not 'TICKET_MODIFY' in perm:
-            self.log.info("%s doesn't have TICKET_MODIFY permission for #%d",
-                          changeset.author, ticket.id)
-            return False
-        ticket['status'] = 'closed'
-        ticket['resolution'] = 'worksforme'
-        if not ticket['owner']:
-            ticket['owner'] = changeset.author
+        if ticket['status'] != 'closed':
+            ticket['status'] = 'closed'
+            ticket['resolution'] = 'worksforme'
+            if not ticket['owner']:
+                ticket['owner'] = changeset.author
+        return True
+
+    def cmd_alreadyimplemented(self, ticket, changeset, perm):
+        if ticket['status'] != 'closed':
+            ticket['status'] = 'closed'
+            ticket['resolution'] = 'already_implemented'
+            if not ticket['owner']:
+                ticket['owner'] = changeset.author
+        return True
 
     def cmd_reopens(self, ticket, changeset, perm):
-        if self.check_perms and not 'TICKET_MODIFY' in perm:
-            self.log.info("%s doesn't have TICKET_MODIFY permission for #%d",
-                          changeset.author, ticket.id)
-            return False
-        ticket['status'] = 'reopened'
-        ticket['resolution'] = ''
-        ticket['owner'] = changeset.author
+        if ticket['status'] == 'closed':
+            ticket['status'] = 'reopened'
+            ticket['resolution'] = ''
+            ticket['owner'] = changeset.author
+        return True
 
     def cmd_refs(self, ticket, changeset, perm):
-        if self.check_perms and not 'TICKET_APPEND' in perm:
-            self.log.info("%s doesn't have TICKET_APPEND permission for #%d",
-                          changeset.author, ticket.id)
-            return False
+        return True
 
     def cmd_implements(self, ticket, changeset, perm):
-        if self.check_perms and not 'TICKET_MODIFY' in perm:
-            self.log.info("%s doesn't have TICKET_MODIFY permission for #%d",
-                          changeset.author, ticket.id)
-            return False
-        ticket['status'] = 'implemented'
-        if ticket['reporter']:
-            ticket['owner'] = ticket['reporter']
-        if not ticket['owner']:
-            ticket['owner'] = changeset.author
+        if ticket['status'] != 'implemented':
+            ticket['status'] = 'implemented'
+            if ticket['reporter']:
+                ticket['owner'] = ticket['reporter']
+            if not ticket['owner']:
+                ticket['owner'] = changeset.author
+        return True
 
     def cmd_rejects(self, ticket, changeset, perm):
-        if self.check_perms and not 'TICKET_MODIFY' in perm:
-            self.log.info("%s doesn't have TICKET_MODIFY permission for #%d",
-                          changeset.author, ticket.id)
-            return False
-        ticket['status'] = 'rejected'
-        if ticket['reporter']:
-            ticket['owner'] = ticket['reporter']
-        if not ticket['owner']:
-            ticket['owner'] = changeset.author
-
+        if ticket['status'] != 'rejected':
+            ticket['status'] = 'rejected'
+            if ticket['reporter']:
+                ticket['owner'] = ticket['reporter']
+            if not ticket['owner']:
+                ticket['owner'] = changeset.author
+        return True
 
 class CommitTicketReferenceMacro(WikiMacroBase):
     _domain = 'messages'

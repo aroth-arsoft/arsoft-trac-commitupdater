@@ -1,3 +1,10 @@
+arsoft-trac-commitupdater (0.6) raring; urgency=low
+
+  * do not modify the tickets twice
+  * add command alreadyimplemented
+
+ -- Andreas Roth <aroth@arsoft-online.com>  Sun, 04 Aug 2013 17:57:49 +0200
+
 arsoft-trac-commitupdater (0.5) quantal; urgency=low
 
   * fixed call to custum command handlers

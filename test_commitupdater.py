@@ -29,6 +29,8 @@ class test_commitupdater(unittest.TestCase):
         self._env.config.set("ticket","commit_ticket_update_commands.refs","addresses re references refs see")
         self._env.config.set("ticket","commit_ticket_update_commands.rejects","reject rejects rejected")
         self._env.config.set("ticket","commit_ticket_update_commands.worksforme","worksforme")
+        self._env.config.set("ticket","commit_ticket_update_commands.alreadyimplemented","alreadyimplemented already_implemented")
+        self._env.config.set("ticket","commit_ticket_update_commands.reopen","reopen reopens reopened")
 
     def build_comment(self,changeset):
         revstring = str(changeset.rev)
@@ -92,6 +94,42 @@ class test_commitupdater(unittest.TestCase):
         self.assertEqual(tickets.keys(),[1])
         # Now check the actions are right
         self.assertEqual(tickets.get(1),[self._committicketupdater.cmd_worksforme])
+
+    def test_check_alreadyimplemented(self):
+        message = "Fixed some stuff. alreadyimplemented #1"
+        test_changeset = Changeset(None,1234,message,"test_person",time.time())
+        self.check_ticket_comment(test_changeset)
+        # For each object in turn:
+        # Get tickets and commands
+        tickets = self._committicketupdater._parse_message(message)
+        # First, check we've got the tickets we were expecting
+        self.assertEqual(tickets.keys(),[1])
+        # Now check the actions are right
+        self.assertEqual(tickets.get(1),[self._committicketupdater.cmd_alreadyimplemented])
+
+    def test_check_already_implemented(self):
+        message = "Fixed some stuff. already_implemented #1"
+        test_changeset = Changeset(None,1234,message,"test_person",time.time())
+        self.check_ticket_comment(test_changeset)
+        # For each object in turn:
+        # Get tickets and commands
+        tickets = self._committicketupdater._parse_message(message)
+        # First, check we've got the tickets we were expecting
+        self.assertEqual(tickets.keys(),[1])
+        # Now check the actions are right
+        self.assertEqual(tickets.get(1),[self._committicketupdater.cmd_alreadyimplemented])
+
+    def test_check_reopens(self):
+        message = "Fixed some stuff. reopen #1"
+        test_changeset = Changeset(None,1234,message,"test_person",time.time())
+        self.check_ticket_comment(test_changeset)
+        # For each object in turn:
+        # Get tickets and commands
+        tickets = self._committicketupdater._parse_message(message)
+        # First, check we've got the tickets we were expecting
+        self.assertEqual(tickets.keys(),[1])
+        # Now check the actions are right
+        self.assertEqual(tickets.get(1),[self._committicketupdater.cmd_reopens])
 
 if __name__ == '__main__':
     unittest.main()
