@@ -1,0 +1,38 @@
+arsoft-trac-commitupdater (0.6) raring; urgency=low
+
+  * do not modify the tickets twice
+  * add command alreadyimplemented
+
+ -- Andreas Roth <aroth@arsoft-online.com>  Sun, 04 Aug 2013 17:57:49 +0200
+
+arsoft-trac-commitupdater (0.5) quantal; urgency=low
+
+  * fixed call to custum command handlers
+  * add new command reopens
+
+ -- Andreas Roth <aroth@arsoft-online.com>  Mon, 08 Apr 2013 07:04:34 +0200
+
+arsoft-trac-commitupdater (0.4) quantal; urgency=low
+
+  * added commands for reject, worksforme and invalidate
+
+ -- Andreas Roth <aroth@arsoft-online.com>  Sun, 07 Apr 2013 19:53:54 +0200
+
+arsoft-trac-commitupdater (0.3) quantal; urgency=low
+
+  * use python-setuptools to build package
+
+ -- Andreas Roth <aroth@arsoft-online.com>  Mon, 04 Feb 2013 06:54:59 +0100
+
+arsoft-trac-commitupdater (0.2) quantal; urgency=low
+
+  * bump version number for minor fixes
+  * added unittest for commit updater script
+
+ -- Andreas Roth <aroth@arsoft-online.com>  Sun, 03 Feb 2013 13:37:22 +0100
+
+arsoft-trac-commitupdater (0.1) quantal; urgency=low
+
+  * initial release
+
+ -- Andreas Roth <aroth@arsoft-online.com>  Sun, 03 Feb 2013 09:31:23 +0100

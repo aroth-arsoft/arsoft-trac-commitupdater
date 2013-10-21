@@ -1,0 +1,14 @@
+#!/usr/bin/make -f
+
+PYTHON2=$(shell pyversions -vr)
+
+# Don't compress .py files
+DEB_COMPRESS_EXCLUDE := .py
+
+%:
+	dh $@ --buildsystem=python_distutils --with=python2
+
+override_dh_clean:
+	dh_clean
+	rm -rf arsoft_trac_commitupdater.egg-info
+	rm -rf tmp

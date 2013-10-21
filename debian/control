@@ -1,0 +1,18 @@
+Source: arsoft-trac-commitupdater
+Section: web
+Priority: optional
+Homepage: http://trac.edgewall.org/wiki/CommitTicketUpdater
+Maintainer: Andreas Roth <aroth@arsoft-online.com>
+Standards-Version: 3.9.4
+Build-Depends: debhelper (>= 8), python (>= 2.7), python-setuptools
+X-Python-Version: >=2.7
+
+Package: arsoft-trac-commitupdater
+Architecture: all
+Depends: ${python:Depends}, ${misc:Depends}, arsoft-python-trac
+Description: plugin to update tickets when certain keywords are used in commit messages.
+ The Commit Ticket Updater is a component which makes Trac react on keywords 
+ and ticket references found in commit log message. Referenced tickets 
+ get a new comment linking to the changeset and depending on the presence 
+ of appropriate keywords (like closed, fixed, reopened, implemented, rejected,
+ etc.) the ticket status will be updated.

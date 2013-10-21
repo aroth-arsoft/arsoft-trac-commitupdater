@@ -34,3 +34,7 @@ nosetests.xml
 .mr.developer.cfg
 .project
 .pydevproject
+
+/build/
+/arsoft_trac_commitupdater.egg-info/
+/tmp/
