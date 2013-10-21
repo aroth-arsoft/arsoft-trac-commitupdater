@@ -132,6 +132,10 @@ class CommitTicketUpdater(Component):
         Must be empty or contain two characters. For example, if set to "[]",
         then commands must be in the form of [closes #4].""")
 
+    allowed_domains = Option('ticket', 'commit_ticket_update_allowed_domains',
+        '',
+        """List of allowed domains in the authors mail address, as a space-separated list.""")
+
     commands_close = Option('ticket', 'commit_ticket_update_commands.close',
         'close closed closes fix fixed fixes',
         """Commands that close tickets, as a space-separated list.""")
@@ -217,6 +221,26 @@ class CommitTicketUpdater(Component):
         self._update_tickets(tickets, changeset, comment,
                              datetime.now(utc))
 
+    def _is_author_allowed(self, changeset_author):
+        #self.log.info('_is_author_allowed got %s, cfg %s' % (changeset_author, self.allowed_domains))
+        if not self.allowed_domains:
+            ret = True
+        else:
+            ret = True
+            at_idx = changeset_author.find('@')
+            if at_idx > 0:
+                start_idx = changeset_author.rfind('<', at_idx)
+                if start_idx < 0:
+                    start_idx = 0
+                end_idx = changeset_author.find('>', at_idx)
+                if end_idx < 0:
+                    end_idx = len(changeset_author)
+                author_email = changeset_author[start_idx:end_idx]
+                author_email_domain = changeset_author[at_idx+1:end_idx].lower()
+                allowed_domains_list = self.allowed_domains.split(' ')
+                ret = True if author_email_domain in allowed_domains_list else False
+        return ret
+
     def _is_duplicate(self, changeset):
         # Avoid duplicate changes with multiple scoped repositories
         cset_id = (changeset.rev, changeset.message, changeset.author,
@@ -267,8 +291,12 @@ In [changeset:"%s"]:
                             self.log.info("%s doesn't have TICKET_MODIFY permission for #%d",
                                         changeset.author, ticket.id)
                         else:
-                            if cmd(ticket, changeset, ticket_perm):
-                                save = True
+                            if self._is_author_allowed(changeset.author):
+                                if cmd(ticket, changeset, ticket_perm):
+                                    save = True
+                            else:
+                                self.log.info("%s is not allowed to modify to #%d",
+                                            changeset.author, ticket.id)
                     if save:
                         ticket.save_changes(changeset.author, comment, date)
                 if save:

@@ -1,3 +1,10 @@
+arsoft-trac-commitupdater (0.7) saucy; urgency=low
+
+  * only react on messages from users using a mail address from a list
+    of allowed domains
+
+ -- Andreas Roth <aroth@arsoft-online.com>  Mon, 21 Oct 2013 07:28:30 +0200
+
 arsoft-trac-commitupdater (0.6) raring; urgency=low
 
   * do not modify the tickets twice

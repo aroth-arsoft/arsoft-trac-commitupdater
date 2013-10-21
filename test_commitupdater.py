@@ -31,6 +31,7 @@ class test_commitupdater(unittest.TestCase):
         self._env.config.set("ticket","commit_ticket_update_commands.worksforme","worksforme")
         self._env.config.set("ticket","commit_ticket_update_commands.alreadyimplemented","alreadyimplemented already_implemented")
         self._env.config.set("ticket","commit_ticket_update_commands.reopen","reopen reopens reopened")
+        self._env.config.set("ticket","commit_ticket_update_allowed_domains","mydomain")
 
     def build_comment(self,changeset):
         revstring = str(changeset.rev)
@@ -130,6 +131,18 @@ class test_commitupdater(unittest.TestCase):
         self.assertEqual(tickets.keys(),[1])
         # Now check the actions are right
         self.assertEqual(tickets.get(1),[self._committicketupdater.cmd_reopens])
+
+    def test_allowed_domains(self):
+        message = "Fixed some stuff. reopen #1"
+
+        test_changeset_declined = Changeset(None,1234,message,"test_person <me@gohome.now>",time.time())
+        self.assertEqual(self._committicketupdater._is_author_allowed(test_changeset_declined.author),False)
+
+        test_changeset_allowed = Changeset(None,1234,message,"test_person <me@mydomain>",time.time())
+        self.assertEqual(self._committicketupdater._is_author_allowed(test_changeset_allowed.author),True)
+
+        test_changeset_no_domain = Changeset(None,1234,message,"test_person",time.time())
+        self.assertEqual(self._committicketupdater._is_author_allowed(test_changeset_no_domain.author),True)
 
 if __name__ == '__main__':
     unittest.main()
