@@ -374,7 +374,7 @@ In [changeset:"%s"]:
         return True
 
     def cmd_implements(self, ticket, changeset, perm):
-        if ticket['status'] != 'implemented':
+        if ticket['status'] != 'implemented' and ticket['status'] != 'closed':
             ticket['status'] = 'implemented'
             if ticket['reporter']:
                 ticket['owner'] = ticket['reporter']
@@ -383,7 +383,7 @@ In [changeset:"%s"]:
         return True
 
     def cmd_rejects(self, ticket, changeset, perm):
-        if ticket['status'] != 'rejected':
+        if ticket['status'] != 'rejected' and ticket['status'] != 'closed':
             ticket['status'] = 'rejected'
             if ticket['reporter']:
                 ticket['owner'] = ticket['reporter']
