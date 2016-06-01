@@ -1,3 +1,9 @@
+arsoft-trac-commitupdater (0.9) xenial; urgency=medium
+
+  * more logging
+
+ -- Andreas Roth <aroth@arsoft-online.com>  Wed, 01 Jun 2016 08:02:15 +0200
+
 arsoft-trac-commitupdater (0.8) saucy; urgency=low
 
   * avoid re-implemented closed tickets

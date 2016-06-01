@@ -201,6 +201,7 @@ class CommitTicketUpdater(Component):
     # IRepositoryChangeListener methods
 
     def changeset_added(self, repos, changeset):
+        self.log.debug("changeset_added on %s for changesets %s", repos.name, changeset.rev)
         if self._is_duplicate(changeset):
             return
         tickets = self._parse_message(changeset.message)
@@ -209,6 +210,7 @@ class CommitTicketUpdater(Component):
                              datetime.now(utc))
 
     def changeset_modified(self, repos, changeset, old_changeset):
+        self.log.debug("changeset_modified on %s for changesets %s", repos.name, changeset.rev)
         if self._is_duplicate(changeset):
             return
         tickets = self._parse_message(changeset.message)
