@@ -39,7 +39,6 @@
 
 from __future__ import with_statement
 
-from datetime import datetime
 import re
 
 from genshi.builder import tag
@@ -50,9 +49,9 @@ from trac.perm import PermissionCache
 from trac.resource import Resource
 from trac.ticket import Ticket
 from trac.ticket.notification import TicketNotifyEmail
-from trac.util.datefmt import utc
+from trac.util.datefmt import datetime_now, utc
 from trac.util.text import exception_to_unicode
-from trac.util.translation import cleandoc_
+from trac.util.translation import _, cleandoc_
 from trac.versioncontrol import IRepositoryChangeListener, RepositoryManager
 from trac.versioncontrol.web_ui.changeset import ChangesetModule
 from trac.wiki.formatter import format_to_html
@@ -207,7 +206,7 @@ class CommitTicketUpdater(Component):
         tickets = self._parse_message(changeset.message)
         comment = self.make_ticket_comment(repos, changeset)
         self._update_tickets(tickets, changeset, comment,
-                             datetime.now(utc))
+                             datetime_now(utc))
 
     def changeset_modified(self, repos, changeset, old_changeset):
         self.log.debug("changeset_modified on %s for changesets %s", repos.name, changeset.rev)
@@ -221,7 +220,7 @@ class CommitTicketUpdater(Component):
                        if each[0] not in old_tickets)
         comment = self.make_ticket_comment(repos, changeset)
         self._update_tickets(tickets, changeset, comment,
-                             datetime.now(utc))
+                             datetime_now(utc))
 
     def _is_author_allowed(self, changeset_author):
         #self.log.info('_is_author_allowed got %s, cfg %s' % (changeset_author, self.allowed_domains))
@@ -254,10 +253,11 @@ class CommitTicketUpdater(Component):
 
     def _parse_message(self, message):
         """Parse the commit message and return the ticket references."""
-        cmd_groups = self.command_re.findall(message)
+        cmd_groups = self.command_re.finditer(message)
         functions = self._get_functions()
         tickets = {}
-        for cmd, tkts in cmd_groups:
+        for m in cmd_groups:
+            cmd, tkts = m.group('action', 'ticket')
             func = functions.get(cmd.lower())
             if not func and self.commands_refs.strip() == '<ALL>':
                 func = self.cmd_refs
@@ -268,19 +268,23 @@ class CommitTicketUpdater(Component):
 
     def make_ticket_comment(self, repos, changeset):
         """Create the ticket comment from the changeset data."""
-        revstring = str(changeset.rev)
+        rev = changeset.rev
+        revstring = str(rev)
+        drev = str(repos.display_rev(rev))
         if repos.reponame:
             revstring += '/' + repos.reponame
+            drev += '/' + repos.reponame
         return """\
-In [changeset:"%s"]:
+In [changeset:"%s" %s]:
 {{{
 #!CommitTicketReference repository="%s" revision="%s"
 %s
-}}}""" % (revstring, repos.reponame, changeset.rev, changeset.message.strip())
+}}}""" % (revstring, drev, repos.reponame, rev, changeset.message.strip())
 
     def _update_tickets(self, tickets, changeset, comment, date):
         """Update the tickets with the given comment."""
-        perm = PermissionCache(self.env, changeset.author)
+        authname = self._authname(changeset)
+        perm = PermissionCache(self.env, authname)
         for tkt_id, cmds in tickets.iteritems():
             try:
                 self.log.debug("Updating ticket #%d", tkt_id)
@@ -291,16 +295,16 @@ In [changeset:"%s"]:
                     for cmd in cmds:
                         if self.check_perms and not 'TICKET_MODIFY' in ticket_perm:
                             self.log.info("%s doesn't have TICKET_MODIFY permission for #%d",
-                                        changeset.author, ticket.id)
+                                        authname, ticket.id)
                         else:
                             if self._is_author_allowed(changeset.author):
                                 if cmd(ticket, changeset, ticket_perm):
                                     save = True
                             else:
                                 self.log.info("%s is not allowed to modify to #%d",
-                                            changeset.author, ticket.id)
+                                            authname, ticket.id)
                     if save:
-                        ticket.save_changes(changeset.author, comment, date)
+                        ticket.save_changes(authname, comment, date)
                 if save:
                     self._notify(ticket, date)
             except Exception, e:
@@ -329,6 +333,11 @@ In [changeset:"%s"]:
             for cmd in getattr(self, 'commands_' + each[4:], '').split():
                 functions[cmd] = func
         return functions
+
+    def _authname(self, changeset):
+        return changeset.author.lower() \
+               if self.env.config.getbool('trac', 'ignore_auth_case') \
+               else changeset.author
 
     # Command-specific behavior
     # The ticket isn't updated if all extracted commands return False.
@@ -409,7 +418,8 @@ class CommitTicketReferenceMacro(WikiMacroBase):
      - `revision`: the revision of the desired changeset
     """)
 
-    def expand_macro(self, formatter, name, content, args={}):
+    def expand_macro(self, formatter, name, content, args=None):
+        args = args or {}
         reponame = args.get('repository') or ''
         rev = args.get('revision')
         repos = RepositoryManager(self.env).get_repository(reponame)
@@ -425,8 +435,8 @@ class CommitTicketReferenceMacro(WikiMacroBase):
             ticket_re = CommitTicketUpdater.ticket_re
             if not any(int(tkt_id) == int(formatter.context.resource.id)
                        for tkt_id in ticket_re.findall(message)):
-                return tag.p("(The changeset message doesn't reference this "
-                             "ticket)", class_='hint')
+                return tag.p(_("(The changeset message doesn't reference this "
+                               "ticket)"), class_='hint')
         if ChangesetModule(self.env).wiki_format_messages:
             return tag.div(format_to_html(self.env,
                 formatter.context.child('changeset', rev, parent=resource),

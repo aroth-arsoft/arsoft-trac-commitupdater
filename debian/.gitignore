@@ -1,6 +1,6 @@
-/arsoft-trac-commitupdater/
-/*.debhelper
-/*.substvars
 /files
 *.debhelper.log
+*.debhelper
+*.substvars
 /debhelper-build-stamp
+/arsoft-trac-commitupdater/
