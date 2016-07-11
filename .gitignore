@@ -38,3 +38,4 @@ nosetests.xml
 /build/
 /arsoft_trac_commitupdater.egg-info/
 /tmp/
+/.pybuild/
