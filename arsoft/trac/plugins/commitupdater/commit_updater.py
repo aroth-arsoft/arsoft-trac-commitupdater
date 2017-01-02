@@ -170,6 +170,10 @@ class CommitTicketUpdater(Component):
         'alreadyimplemented already_implemented',
         """Commands that close tickets with status already_implemented, as a space-separated list.""")
 
+    commands_testready = Option('ticket', 'commit_ticket_update_commands.testready',
+        'testready test_ready ready_for_test rft',
+        """Commands that change tickets to test_ready status, as a space-separated list.""")
+
     check_perms = BoolOption('ticket', 'commit_ticket_update_check_perms',
         'true',
         """Check that the committer has permission to perform the requested
@@ -270,7 +274,7 @@ class CommitTicketUpdater(Component):
         """Create the ticket comment from the changeset data."""
         rev = changeset.rev
         revstring = str(rev)
-        drev = str(repos.display_rev(rev))
+        drev = str(repos.display_rev(revstring))
         if repos.reponame:
             revstring += '/' + repos.reponame
             drev += '/' + repos.reponame
@@ -396,6 +400,16 @@ In [changeset:"%s" %s]:
     def cmd_rejects(self, ticket, changeset, perm):
         if ticket['status'] != 'rejected' and ticket['status'] != 'closed':
             ticket['status'] = 'rejected'
+            if ticket['reporter']:
+                ticket['owner'] = ticket['reporter']
+            if not ticket['owner']:
+                ticket['owner'] = changeset.author
+        return True
+
+    def cmd_testready(self, ticket, changeset, perm):
+        if ticket['status'] != 'closed':
+            ticket['status'] = 'test_ready'
+            ticket['resolution'] = ''
             if ticket['reporter']:
                 ticket['owner'] = ticket['reporter']
             if not ticket['owner']:
