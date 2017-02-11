@@ -391,10 +391,7 @@ In [changeset:"%s" %s]:
     def cmd_implements(self, ticket, changeset, perm):
         if ticket['status'] != 'implemented' and ticket['status'] != 'closed':
             ticket['status'] = 'implemented'
-            if ticket['reporter']:
-                ticket['owner'] = ticket['reporter']
-            if not ticket['owner']:
-                ticket['owner'] = changeset.author
+            ticket['owner'] = changeset.author
         return True
 
     def cmd_rejects(self, ticket, changeset, perm):

@@ -1,3 +1,9 @@
+arsoft-trac-commitupdater (0.13) yakkety; urgency=medium
+
+  * implemented tickets should be assigned to the changeset author
+
+ -- Andreas Roth <aroth@arsoft-online.com>  Sat, 11 Feb 2017 13:21:20 +0100
+
 arsoft-trac-commitupdater (0.12) yakkety; urgency=medium
 
   * added test_ready command
