@@ -226,25 +226,48 @@ class CommitTicketUpdater(Component):
         self._update_tickets(tickets, changeset, comment,
                              datetime_now(utc))
 
+    def _get_changeset_author(self, changeset_author):
+        author_email = None
+        author_email_domain = None
+        at_idx = changeset_author.find('@')
+        if at_idx > 0:
+            start_idx = changeset_author.rfind('<', at_idx)
+            if start_idx < 0:
+                start_idx = 0
+            end_idx = changeset_author.find('>', at_idx)
+            if end_idx < 0:
+                end_idx = len(changeset_author)
+            author_email = changeset_author[start_idx:end_idx]
+            author_email_domain = changeset_author[at_idx+1:end_idx].lower()
+        return author_email, author_email_domain
+
     def _is_author_allowed(self, changeset_author):
         #self.log.info('_is_author_allowed got %s, cfg %s' % (changeset_author, self.allowed_domains))
         if not self.allowed_domains:
             ret = True
         else:
-            ret = True
-            at_idx = changeset_author.find('@')
-            if at_idx > 0:
-                start_idx = changeset_author.rfind('<', at_idx)
-                if start_idx < 0:
-                    start_idx = 0
-                end_idx = changeset_author.find('>', at_idx)
-                if end_idx < 0:
-                    end_idx = len(changeset_author)
-                author_email = changeset_author[start_idx:end_idx]
-                author_email_domain = changeset_author[at_idx+1:end_idx].lower()
+            # Default to deny author when we are unable to get a valid email from the
+            # changeset author
+            ret = False
+            author_email, author_email_domain = self._get_changeset_author(changeset_author)
+            if author_email_domain is not None:
                 allowed_domains_list = self.allowed_domains.split(' ')
                 ret = True if author_email_domain in allowed_domains_list else False
         return ret
+
+    def _get_username_for_email(self, changeset_email):
+        changeset_email_lower = changeset_email.lower()
+        for username, name, email in self.env.get_known_users():
+            if email.lower() == changeset_email_lower or username.lower() == changeset_email_lower:
+                return username
+        return None
+
+    def _get_username_for_changeset_author(self, changeset_author):
+        author_email, author_email_domain = self._get_changeset_author(changeset_author)
+        if author_email:
+            return self._get_username_for_email(author_email)
+        else:
+            return self._get_username_for_email(changeset_author)
 
     def _is_duplicate(self, changeset):
         # Avoid duplicate changes with multiple scoped repositories
@@ -351,7 +374,9 @@ In [changeset:"%s" %s]:
             ticket['status'] = 'closed'
             ticket['resolution'] = 'fixed'
             if not ticket['owner']:
-                ticket['owner'] = changeset.author
+                author_username = self._get_username_for_changeset_author(changeset.author)
+                if author_username:
+                    ticket['owner'] = author_username
         return True
 
     def cmd_invalidate(self, ticket, changeset, perm):
@@ -359,7 +384,9 @@ In [changeset:"%s" %s]:
             ticket['status'] = 'closed'
             ticket['resolution'] = 'invalid'
             if not ticket['owner']:
-                ticket['owner'] = changeset.author
+                author_username = self._get_username_for_changeset_author(changeset.author)
+                if author_username:
+                    ticket['owner'] = author_username
         return True
 
     def cmd_worksforme(self, ticket, changeset, perm):
@@ -367,7 +394,9 @@ In [changeset:"%s" %s]:
             ticket['status'] = 'closed'
             ticket['resolution'] = 'worksforme'
             if not ticket['owner']:
-                ticket['owner'] = changeset.author
+                author_username = self._get_username_for_changeset_author(changeset.author)
+                if author_username:
+                    ticket['owner'] = author_username
         return True
 
     def cmd_alreadyimplemented(self, ticket, changeset, perm):
@@ -375,14 +404,18 @@ In [changeset:"%s" %s]:
             ticket['status'] = 'closed'
             ticket['resolution'] = 'already_implemented'
             if not ticket['owner']:
-                ticket['owner'] = changeset.author
+                author_username = self._get_username_for_changeset_author(changeset.author)
+                if author_username:
+                    ticket['owner'] = author_username
         return True
 
     def cmd_reopens(self, ticket, changeset, perm):
         if ticket['status'] == 'closed':
             ticket['status'] = 'reopened'
             ticket['resolution'] = ''
-            ticket['owner'] = changeset.author
+            author_username = self._get_username_for_changeset_author(changeset.author)
+            if author_username:
+                ticket['owner'] = author_username
         return True
 
     def cmd_refs(self, ticket, changeset, perm):
@@ -391,7 +424,9 @@ In [changeset:"%s" %s]:
     def cmd_implements(self, ticket, changeset, perm):
         if ticket['status'] != 'implemented' and ticket['status'] != 'closed':
             ticket['status'] = 'implemented'
-            ticket['owner'] = changeset.author
+            author_username = self._get_username_for_changeset_author(changeset.author)
+            if author_username:
+                ticket['owner'] = author_username
         return True
 
     def cmd_rejects(self, ticket, changeset, perm):
@@ -400,7 +435,9 @@ In [changeset:"%s" %s]:
             if ticket['reporter']:
                 ticket['owner'] = ticket['reporter']
             if not ticket['owner']:
-                ticket['owner'] = changeset.author
+                author_username = self._get_username_for_changeset_author(changeset.author)
+                if author_username:
+                    ticket['owner'] = author_username
         return True
 
     def cmd_testready(self, ticket, changeset, perm):
@@ -410,7 +447,9 @@ In [changeset:"%s" %s]:
             if ticket['reporter']:
                 ticket['owner'] = ticket['reporter']
             if not ticket['owner']:
-                ticket['owner'] = changeset.author
+                author_username = self._get_username_for_changeset_author(changeset.author)
+                if author_username:
+                    ticket['owner'] = author_username
         return True
 
 class CommitTicketReferenceMacro(WikiMacroBase):
