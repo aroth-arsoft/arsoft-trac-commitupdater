@@ -297,7 +297,7 @@ class CommitTicketUpdater(Component):
         """Create the ticket comment from the changeset data."""
         rev = changeset.rev
         revstring = str(rev)
-        drev = str(repos.display_rev(revstring))
+        drev = str(repos.display_rev(rev))
         if repos.reponame:
             revstring += '/' + repos.reponame
             drev += '/' + repos.reponame
