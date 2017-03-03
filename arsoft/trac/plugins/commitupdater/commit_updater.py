@@ -40,6 +40,7 @@
 from __future__ import with_statement
 
 import re
+import sys
 
 from genshi.builder import tag
 
@@ -239,6 +240,7 @@ class CommitTicketUpdater(Component):
                 end_idx = len(changeset_author)
             author_email = changeset_author[start_idx:end_idx]
             author_email_domain = changeset_author[at_idx+1:end_idx].lower()
+        sys.stderr.write('_get_changeset_author %s, %s\n' % (author_email, author_email_domain))
         return author_email, author_email_domain
 
     def _is_author_allowed(self, changeset_author):
@@ -310,33 +312,35 @@ In [changeset:"%s" %s]:
 
     def _update_tickets(self, tickets, changeset, comment, date):
         """Update the tickets with the given comment."""
-        authname = self._authname(changeset)
+
+        authname = self._get_username_for_changeset_author(changeset.author)
+        if not authname:
+            authname = self._authname(changeset)
+        sys.stderr.write('authname=%s\n' % authname)
         perm = PermissionCache(self.env, authname)
         for tkt_id, cmds in tickets.iteritems():
-            try:
-                self.log.debug("Updating ticket #%d", tkt_id)
-                save = False
-                with self.env.db_transaction:
-                    ticket = Ticket(self.env, tkt_id)
-                    ticket_perm = perm(ticket.resource)
-                    for cmd in cmds:
-                        if self.check_perms and not 'TICKET_MODIFY' in ticket_perm:
-                            self.log.info("%s doesn't have TICKET_MODIFY permission for #%d",
-                                        authname, ticket.id)
+            self.log.debug("Updating ticket #%d", tkt_id)
+            save = False
+            with self.env.db_transaction:
+                ticket = Ticket(self.env, tkt_id)
+                ticket_perm = perm(ticket.resource)
+                for cmd in cmds:
+                    if self.check_perms and not 'TICKET_MODIFY' in ticket_perm:
+                        sys.stderr.write("%s doesn't have TICKET_MODIFY permission for #%d\n" % (authname, ticket.id))
+                        self.log.info("%s doesn't have TICKET_MODIFY permission for #%d",
+                                    authname, ticket.id)
+                    else:
+                        if self._is_author_allowed(changeset.author):
+                            if cmd(ticket, changeset, ticket_perm):
+                                save = True
                         else:
-                            if self._is_author_allowed(changeset.author):
-                                if cmd(ticket, changeset, ticket_perm):
-                                    save = True
-                            else:
-                                self.log.info("%s is not allowed to modify to #%d",
-                                            authname, ticket.id)
-                    if save:
-                        ticket.save_changes(authname, comment, date)
+                            sys.stderr.write("%s is not allowed to modify to #%d\n" % (authname, ticket.id))
+                            self.log.info("%s is not allowed to modify to #%d",
+                                        authname, ticket.id)
                 if save:
-                    self._notify(ticket, date)
-            except Exception, e:
-                self.log.error("Unexpected error while processing ticket "
-                               "#%s: %s", tkt_id, exception_to_unicode(e))
+                    ticket.save_changes(authname, comment, date)
+            if save:
+                self._notify(ticket, date)
 
     def _notify(self, ticket, date):
         """Send a ticket update notification."""

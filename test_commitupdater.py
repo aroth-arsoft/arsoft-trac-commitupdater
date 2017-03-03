@@ -11,7 +11,9 @@ import trac.env
 import time, unittest
 from trac.util.datefmt import time_now, utc
 from trac.core import ComponentManager
+from trac.ticket.model import Component
 from trac.versioncontrol.api import Repository, Changeset, NoSuchChangeset
+from trac.web.session import Session
 from tracopt.versioncontrol.git.git_fs import GitRepository
 from trac.perm import PermissionSystem
 from trac.test import EnvironmentStub, Mock, MockRequest
@@ -67,21 +69,36 @@ class MockRepository(Repository):
 
 class test_commitupdater(unittest.TestCase):
 
+
+    def _test_authenticated_session(self, username, fullname, email):
+        """
+        Verifies that a session cookie does not get used if the user is logged
+        in, and that Trac expires the cookie.
+        """
+        req = MockRequest(self.env, authname=username)
+        req.incookie['trac_session'] = '123456'
+        session = Session(self.env, req)
+        self.assertEqual(username, session.sid)
+        session['email'] = email
+        session['name'] = fullname
+        session.save()
+
     def setUp(self):
         self.env = EnvironmentStub(default_data=True)
 
         self.perm_sys = PermissionSystem(self.env)
-        self.env.insert_users([('user1', 'User C', 'user1@example.org'),
+        users = [('user1', 'User C', 'user1@example.org'),
                                ('user2', 'User A', 'user2@example.org'),
                                ('user3', 'User D', 'user3@example.org'),
-                               ('user4', 'User B', 'user4@example.org')])
+                               ('user4', 'User B', 'user4@example.org')]
+        self.env.insert_users(users)
         self.perm_sys.grant_permission('user1', 'TICKET_MODIFY')
         self.perm_sys.grant_permission('user2', 'TICKET_VIEW')
         self.perm_sys.grant_permission('user3', 'TICKET_MODIFY')
         self.perm_sys.grant_permission('user4', 'TICKET_MODIFY')
 
-        self._committicketupdater = CommitTicketUpdater(self.env)
-
+        for (username, fullname, email) in users:
+            self._test_authenticated_session(username, fullname, email)
 
         #self.repo = Mock(Repository, 'testrepo',
         #            {'name': 'testrepo', 'id': 4321}, None)
@@ -100,6 +117,25 @@ class test_commitupdater(unittest.TestCase):
         config.set("ticket","commit_ticket_update_commands.reopen","reopen reopens reopened")
         config.set("ticket","commit_ticket_update_commands.testready","testready test_ready ready_for_test rft")
         config.set("ticket","commit_ticket_update_allowed_domains","mydomain")
+        config.set("ticket","commit_ticket_update_check_perms",False)
+
+        self._add_component('component3', 'user3')
+
+        self.ticket = Ticket(self.env)
+        self.ticket.populate({
+            'reporter': 'user1',
+            'summary': 'the summary',
+            'component': 'component3',
+            'owner': 'user3',
+            'status': 'new',
+        })
+        self.tkt_id = self.ticket.insert()
+
+        #for username, name, email in self.env.get_known_users():
+         #   sys.stderr.write('known user %s, %s, %s\n' % (username, name, email))
+
+        self._committicketupdater = CommitTicketUpdater(self.env)
+
 
     def tearDown(self):
         self.env.reset_db()
@@ -129,9 +165,9 @@ class test_commitupdater(unittest.TestCase):
             self.assertEqual(self._committicketupdater.make_ticket_comment(self.repo,changeset), self.build_comment(changeset))
 
     def test_check_implements(self):
-        message = "Fixed some stuff. implements #1"
+        message = "Fixed some stuff. implements #%i" % self.tkt_id
         test_changeset = Mock(Changeset, self.repo, 42, message,
-                         'user@example.com', None)
+                         'user1@example.com', None)
 
         self.check_ticket_comment(test_changeset)
         # For each object in turn:
@@ -143,9 +179,9 @@ class test_commitupdater(unittest.TestCase):
         self.assertEqual(tickets.get(1),[self._committicketupdater.cmd_implements])
 
     def test_check_invalidate(self):
-        message = "Fixed some stuff. invalid #1"
+        message = "Fixed some stuff. invalid #%i" % self.tkt_id
         test_changeset = Mock(Changeset, self.repo, 42, message,
-                         'user@example.com', None)
+                         'user1@example.com', None)
         self.check_ticket_comment(test_changeset)
         # For each object in turn:
         # Get tickets and commands
@@ -156,9 +192,9 @@ class test_commitupdater(unittest.TestCase):
         self.assertEqual(tickets.get(1),[self._committicketupdater.cmd_invalidate])
 
     def test_check_rejects(self):
-        message = "Fixed some stuff. reject #1"
+        message = "Fixed some stuff. reject #%i" % self.tkt_id
         test_changeset = Mock(Changeset, self.repo, 42, message,
-                         'user@example.com', None)
+                         'user1@example.com', None)
         self.check_ticket_comment(test_changeset)
         # For each object in turn:
         # Get tickets and commands
@@ -169,9 +205,9 @@ class test_commitupdater(unittest.TestCase):
         self.assertEqual(tickets.get(1),[self._committicketupdater.cmd_rejects])
 
     def test_check_worksforme(self):
-        message = "Fixed some stuff. worksforme #1"
+        message = "Fixed some stuff. worksforme #%i" % self.tkt_id
         test_changeset = Mock(Changeset, self.repo, 42, message,
-                         'user@example.com', None)
+                         'user1@example.com', None)
         self.check_ticket_comment(test_changeset)
         # For each object in turn:
         # Get tickets and commands
@@ -182,9 +218,9 @@ class test_commitupdater(unittest.TestCase):
         self.assertEqual(tickets.get(1),[self._committicketupdater.cmd_worksforme])
 
     def test_check_alreadyimplemented(self):
-        message = "Fixed some stuff. alreadyimplemented #1"
+        message = "Fixed some stuff. alreadyimplemented #%i" % self.tkt_id
         test_changeset = Mock(Changeset, self.repo, 42, message,
-                         'user@example.com', None)
+                         'user1@example.com', None)
         self.check_ticket_comment(test_changeset)
         # For each object in turn:
         # Get tickets and commands
@@ -195,9 +231,9 @@ class test_commitupdater(unittest.TestCase):
         self.assertEqual(tickets.get(1),[self._committicketupdater.cmd_alreadyimplemented])
 
     def test_check_already_implemented(self):
-        message = "Fixed some stuff. already_implemented #1"
+        message = "Fixed some stuff. already_implemented #%i" % self.tkt_id
         test_changeset = Mock(Changeset, self.repo, 42, message,
-                         'user@example.com', None)
+                         'user1@example.com', None)
         self.check_ticket_comment(test_changeset)
         # For each object in turn:
         # Get tickets and commands
@@ -208,9 +244,9 @@ class test_commitupdater(unittest.TestCase):
         self.assertEqual(tickets.get(1),[self._committicketupdater.cmd_alreadyimplemented])
 
     def test_check_reopens(self):
-        message = "Fixed some stuff. reopen #1"
+        message = "Fixed some stuff. reopen #%i" % self.tkt_id
         test_changeset = Mock(Changeset, self.repo, 42, message,
-                         'user@example.com', None)
+                         'user1@example.com', None)
         self.check_ticket_comment(test_changeset)
         # For each object in turn:
         # Get tickets and commands
@@ -221,9 +257,9 @@ class test_commitupdater(unittest.TestCase):
         self.assertEqual(tickets.get(1),[self._committicketupdater.cmd_reopens])
 
     def test_check_testready(self):
-        message = "Fixed some stuff. ready_for_test #1"
+        message = "Fixed some stuff. ready_for_test #%i" % self.tkt_id
         test_changeset = Mock(Changeset, self.repo, 42, message,
-                         'user@example.com', None)
+                         'user1@example.com', None)
         self.check_ticket_comment(test_changeset)
         # For each object in turn:
         # Get tickets and commands
@@ -234,7 +270,7 @@ class test_commitupdater(unittest.TestCase):
         self.assertEqual(tickets.get(1),[self._committicketupdater.cmd_testready])
 
     def test_allowed_domains(self):
-        message = "Fixed some stuff. reopen #1"
+        message = "Fixed some stuff. reopen #%i" % self.tkt_id
 
         test_changeset_declined = Mock(Changeset, self.repo, 42, message,
                          "test_person <me@gohome.now>", None)
@@ -247,6 +283,24 @@ class test_commitupdater(unittest.TestCase):
         test_changeset_no_domain = Mock(Changeset, self.repo, 42, message,
                          "test_person", None)
         self.assertEqual(self._committicketupdater._is_author_allowed(test_changeset_no_domain.author),False)
+
+    def test_check_implements_cmd(self):
+        message = "Fixed some stuff. implements #%i" % self.tkt_id
+        test_changeset = Mock(Changeset, self.repo, 42, message,
+                         'user1@example.com', None)
+
+        self.check_ticket_comment(test_changeset)
+        # For each object in turn:
+        # Get tickets and commands
+        tickets = self._committicketupdater._parse_message(message)
+        # First, check we've got the tickets we were expecting
+        self.assertEqual(tickets.keys(),[1])
+        # Now check the actions are right
+        self.assertEqual(tickets.get(1),[self._committicketupdater.cmd_implements])
+
+        self._committicketupdater.changeset_added(self.repo, test_changeset)
+        ticket = Ticket(self.env, self.tkt_id)
+        self.assertEqual(ticket['status'], 'implemented')
 
 if __name__ == '__main__':
     unittest.main()
