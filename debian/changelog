@@ -1,3 +1,9 @@
+arsoft-trac-commitupdater (0.14) yakkety; urgency=medium
+
+  * get trac user from email address in changeset
+
+ -- Andreas Roth <aroth@arsoft-online.com>  Sat, 04 Mar 2017 17:27:16 +0100
+
 arsoft-trac-commitupdater (0.13) yakkety; urgency=medium
 
   * implemented tickets should be assigned to the changeset author
