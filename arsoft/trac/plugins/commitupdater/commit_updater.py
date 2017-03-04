@@ -47,7 +47,7 @@ from genshi.builder import tag
 from trac.config import BoolOption, Option
 from trac.core import Component, implements
 from trac.perm import PermissionCache
-from trac.resource import Resource
+from trac.resource import Resource, ResourceNotFound
 from trac.ticket import Ticket
 from trac.ticket.notification import TicketNotifyEmail
 from trac.util.datefmt import datetime_now, utc
@@ -202,16 +202,21 @@ class CommitTicketUpdater(Component):
 
     _last_cset_id = None
 
+
+    def changeset_added_impl(self, repos, changeset):
+        tickets = self._parse_message(changeset.message)
+        comment = self.make_ticket_comment(repos, changeset)
+        return self._update_tickets(tickets, changeset, comment,
+                             datetime_now(utc))
+
+
     # IRepositoryChangeListener methods
 
     def changeset_added(self, repos, changeset):
         self.log.debug("changeset_added on %s for changesets %s", repos.name, changeset.rev)
         if self._is_duplicate(changeset):
             return
-        tickets = self._parse_message(changeset.message)
-        comment = self.make_ticket_comment(repos, changeset)
-        self._update_tickets(tickets, changeset, comment,
-                             datetime_now(utc))
+        self.changeset_added_impl(repos, changeset)
 
     def changeset_modified(self, repos, changeset, old_changeset):
         self.log.debug("changeset_modified on %s for changesets %s", repos.name, changeset.rev)
@@ -227,21 +232,26 @@ class CommitTicketUpdater(Component):
         self._update_tickets(tickets, changeset, comment,
                              datetime_now(utc))
 
-    def _get_changeset_author(self, changeset_author):
+    @staticmethod
+    def _get_changeset_author(changeset_author):
+        author_name = None
         author_email = None
         author_email_domain = None
         at_idx = changeset_author.find('@')
         if at_idx > 0:
-            start_idx = changeset_author.rfind('<', at_idx)
+            start_idx = changeset_author.rfind('<', 0, at_idx)
             if start_idx < 0:
                 start_idx = 0
+            else:
+                author_name = changeset_author[0:start_idx].strip()
+                start_idx = start_idx + 1
             end_idx = changeset_author.find('>', at_idx)
             if end_idx < 0:
                 end_idx = len(changeset_author)
             author_email = changeset_author[start_idx:end_idx]
             author_email_domain = changeset_author[at_idx+1:end_idx].lower()
-        sys.stderr.write('_get_changeset_author %s, %s\n' % (author_email, author_email_domain))
-        return author_email, author_email_domain
+
+        return author_name, author_email, author_email_domain
 
     def _is_author_allowed(self, changeset_author):
         #self.log.info('_is_author_allowed got %s, cfg %s' % (changeset_author, self.allowed_domains))
@@ -251,7 +261,7 @@ class CommitTicketUpdater(Component):
             # Default to deny author when we are unable to get a valid email from the
             # changeset author
             ret = False
-            author_email, author_email_domain = self._get_changeset_author(changeset_author)
+            author_name, author_email, author_email_domain = CommitTicketUpdater._get_changeset_author(changeset_author)
             if author_email_domain is not None:
                 allowed_domains_list = self.allowed_domains.split(' ')
                 ret = True if author_email_domain in allowed_domains_list else False
@@ -260,13 +270,15 @@ class CommitTicketUpdater(Component):
     def _get_username_for_email(self, changeset_email):
         changeset_email_lower = changeset_email.lower()
         for username, name, email in self.env.get_known_users():
+            #print('%s, %s, %s <> %s' % (username, name, email, changeset_email_lower))
             if email.lower() == changeset_email_lower or username.lower() == changeset_email_lower:
                 return username
         return None
 
     def _get_username_for_changeset_author(self, changeset_author):
-        author_email, author_email_domain = self._get_changeset_author(changeset_author)
-        if author_email:
+        author_name, author_email, author_email_domain = CommitTicketUpdater._get_changeset_author(changeset_author)
+        #print(author_name, author_email, author_email_domain )
+        if author_email is not None:
             return self._get_username_for_email(author_email)
         else:
             return self._get_username_for_email(changeset_author)
@@ -316,31 +328,38 @@ In [changeset:"%s" %s]:
         authname = self._get_username_for_changeset_author(changeset.author)
         if not authname:
             authname = self._authname(changeset)
-        sys.stderr.write('authname=%s\n' % authname)
         perm = PermissionCache(self.env, authname)
+        ret = {}
         for tkt_id, cmds in tickets.iteritems():
             self.log.debug("Updating ticket #%d", tkt_id)
             save = False
             with self.env.db_transaction:
-                ticket = Ticket(self.env, tkt_id)
-                ticket_perm = perm(ticket.resource)
-                for cmd in cmds:
+                try:
+                    ticket = Ticket(self.env, tkt_id)
+                except ResourceNotFound:
+                    self.log.warning("Ticket %i does not exist", tkt_id)
+                    ticket = None
+                if ticket is not None:
+                    ticket_perm = perm(ticket.resource)
                     if self.check_perms and not 'TICKET_MODIFY' in ticket_perm:
-                        sys.stderr.write("%s doesn't have TICKET_MODIFY permission for #%d\n" % (authname, ticket.id))
+                        #sys.stderr.write("%s doesn't have TICKET_MODIFY permission for #%d\n" % (authname, ticket.id))
                         self.log.info("%s doesn't have TICKET_MODIFY permission for #%d",
                                     authname, ticket.id)
                     else:
                         if self._is_author_allowed(changeset.author):
-                            if cmd(ticket, changeset, ticket_perm):
-                                save = True
+                            for cmd in cmds:
+                                if cmd(ticket, changeset, ticket_perm):
+                                    save = True
                         else:
-                            sys.stderr.write("%s is not allowed to modify to #%d\n" % (authname, ticket.id))
+                            #sys.stderr.write("%s is not allowed to modify to #%d\n" % (changeset.author, ticket.id))
                             self.log.info("%s is not allowed to modify to #%d",
-                                        authname, ticket.id)
-                if save:
-                    ticket.save_changes(authname, comment, date)
+                                        changeset.author, ticket.id)
+                    if save:
+                        ticket.save_changes(authname, comment, date)
             if save:
                 self._notify(ticket, date)
+            ret[tkt_id] = (cmds, ticket)
+        return ret
 
     def _notify(self, ticket, date):
         """Send a ticket update notification."""
@@ -377,10 +396,9 @@ In [changeset:"%s" %s]:
         if ticket['status'] != 'closed':
             ticket['status'] = 'closed'
             ticket['resolution'] = 'fixed'
-            if not ticket['owner']:
-                author_username = self._get_username_for_changeset_author(changeset.author)
-                if author_username:
-                    ticket['owner'] = author_username
+            author_username = self._get_username_for_changeset_author(changeset.author)
+            if author_username:
+                ticket['owner'] = author_username
         return True
 
     def cmd_invalidate(self, ticket, changeset, perm):
@@ -497,3 +515,11 @@ class CommitTicketReferenceMacro(WikiMacroBase):
                 message, escape_newlines=True), class_='message')
         else:
             return tag.pre(message, class_='message')
+
+if __name__ == '__main__':
+    for a in ["test_person <me@gohome.now>",
+                         "test_person <me@mydomain>",
+                         "test_person",
+                         "test_person@gohome.now"
+                         ]:
+        print(CommitTicketUpdater._get_changeset_author(a))
