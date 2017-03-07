@@ -271,7 +271,7 @@ class CommitTicketUpdater(Component):
         changeset_email_lower = changeset_email.lower()
         for username, name, email in self.env.get_known_users():
             #print('%s, %s, %s <> %s' % (username, name, email, changeset_email_lower))
-            if email.lower() == changeset_email_lower or username.lower() == changeset_email_lower:
+            if (email is not None and email.lower() == changeset_email_lower) or (username is not None and username.lower() == changeset_email_lower):
                 return username
         return None
 
