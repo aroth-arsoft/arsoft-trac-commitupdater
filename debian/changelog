@@ -1,3 +1,9 @@
+arsoft-trac-commitupdater (0.16) disco; urgency=medium
+
+  * rebuild
+
+ -- Andreas Roth <aroth@arsoft-online.com>  Wed, 07 Aug 2019 19:59:21 +0200
+
 arsoft-trac-commitupdater (0.15) yakkety; urgency=medium
 
   * avoid exception when username or email is None 

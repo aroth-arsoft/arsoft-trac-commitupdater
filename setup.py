@@ -6,7 +6,7 @@ import os
 from setuptools import setup
 
 setup(name='arsoft-trac-commitupdater',
-        version='0.15',
+        version='0.16',
         description='A plugin to update tickets within Trac when certain keywords are using in commit messages.',
         long_description = open(os.path.join(os.path.dirname(__file__), 'README.md')).read(),
         author='Andreas Roth',
