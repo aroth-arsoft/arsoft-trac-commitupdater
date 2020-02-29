@@ -2,16 +2,16 @@
 # -*- coding: utf-8 -*-
 # kate: space-indent on; indent-width 4; mixedindent off; indent-mode python;
 #
-# Copyright (C) 2009 Edgewall Software
+# Copyright (C) 2009-2019 Edgewall Software
 # All rights reserved.
 #
 # This software is licensed as described in the file COPYING, which
 # you should have received as part of this distribution. The terms
-# are also available at http://trac.edgewall.org/wiki/TracLicense.
+# are also available at https://trac.edgewall.org/wiki/TracLicense.
 #
 # This software consists of voluntary contributions made by many
 # individuals. For the exact contribution history, see the revision
-# history and logs, available at http://trac.edgewall.org/log/.
+# history and logs, available at https://trac.edgewall.org/log/.
 
 # This plugin was based on the contrib/trac-post-commit-hook script, which
 # had the following copyright notice:
@@ -40,17 +40,17 @@
 from __future__ import with_statement
 
 import re
-import sys
-
-from genshi.builder import tag
+import textwrap
 
 from trac.config import BoolOption, Option
 from trac.core import Component, implements
+from trac.notification.api import NotificationSystem
 from trac.perm import PermissionCache
 from trac.resource import Resource, ResourceNotFound
 from trac.ticket import Ticket
-from trac.ticket.notification import TicketNotifyEmail
+from trac.ticket.notification import TicketChangeEvent
 from trac.util.datefmt import datetime_now, utc
+from trac.util.html import tag
 from trac.util.text import exception_to_unicode
 from trac.util.translation import _, cleandoc_
 from trac.versioncontrol import IRepositoryChangeListener, RepositoryManager
@@ -78,6 +78,13 @@ class CommitTicketUpdater(Component):
     command ticket:1, ticket:2
     command ticket:1 & ticket:2
     command ticket:1 and ticket:2
+    }}}
+
+    Using the long-form syntax allows a comment to be included in the
+    reference, e.g.:
+    {{{
+    command ticket:1#comment:1
+    command ticket:1#comment:description
     }}}
 
     In addition, the ':' character can be omitted and issue or bug can be used
@@ -129,8 +136,8 @@ class CommitTicketUpdater(Component):
     envelope = Option('ticket', 'commit_ticket_update_envelope', '',
         """Require commands to be enclosed in an envelope.
 
-        Must be empty or contain two characters. For example, if set to "[]",
-        then commands must be in the form of [closes #4].""")
+        Must be empty or contain two characters. For example, if set to `[]`,
+        then commands must be in the form of `[closes #4]`.""")
 
     allowed_domains = Option('ticket', 'commit_ticket_update_allowed_domains',
         '',
@@ -144,7 +151,7 @@ class CommitTicketUpdater(Component):
         'addresses re references refs see',
         """Commands that add a reference, as a space-separated list.
 
-        If set to the special value <ALL>, all tickets referenced by the
+        If set to the special value `<ALL>`, all tickets referenced by the
         message will get a reference to the changeset.""")
 
     commands_reopens = Option('ticket', 'commit_ticket_update_commands.reopen',
@@ -187,7 +194,8 @@ class CommitTicketUpdater(Component):
         """Send ticket change notification when updating a ticket.""")
 
     ticket_prefix = '(?:#|(?:ticket|issue|bug)[: ]?)'
-    ticket_reference = ticket_prefix + '[0-9]+'
+    ticket_reference = ticket_prefix + \
+                       '[0-9]+(?:#comment:([0-9]+|description))?'
     ticket_command = (r'(?P<action>[A-Za-z\_]*)\s*.?\s*'
                       r'(?P<ticket>%s(?:(?:[, &]*|[ ]?and[ ]?)%s)*)' %
                       (ticket_reference, ticket_reference))
@@ -315,12 +323,13 @@ class CommitTicketUpdater(Component):
         if repos.reponame:
             revstring += '/' + repos.reponame
             drev += '/' + repos.reponame
-        return """\
+        return textwrap.dedent("""\
 In [changeset:"%s" %s]:
 {{{
 #!CommitTicketReference repository="%s" revision="%s"
 %s
-}}}""" % (revstring, drev, repos.reponame, rev, changeset.message.strip())
+}}}""") % (revstring, drev, repos.reponame, rev,
+                       changeset.message.strip())
 
     def _update_tickets(self, tickets, changeset, comment, date):
         """Update the tickets with the given comment."""
@@ -361,14 +370,14 @@ In [changeset:"%s" %s]:
             ret[tkt_id] = (cmds, ticket)
         return ret
 
-    def _notify(self, ticket, date):
+    def _notify(self, ticket, date, author, comment):
         """Send a ticket update notification."""
         if not self.notify:
             return
+        event = TicketChangeEvent('changed', ticket, date, author, comment)
         try:
-            tn = TicketNotifyEmail(self.env)
-            tn.notify(ticket, newticket=False, modtime=date)
-        except Exception, e:
+            NotificationSystem(self.env).notify(event)
+        except Exception as e:
             self.log.error("Failure sending notification on change to "
                            "ticket #%s: %s", ticket.id,
                            exception_to_unicode(e))
@@ -385,6 +394,8 @@ In [changeset:"%s" %s]:
         return functions
 
     def _authname(self, changeset):
+        """Returns the author of the changeset, normalizing the casing if
+        [trac] ignore_author_case is true."""
         return changeset.author.lower() \
                if self.env.config.getbool('trac', 'ignore_auth_case') \
                else changeset.author
@@ -507,8 +518,8 @@ class CommitTicketReferenceMacro(WikiMacroBase):
             ticket_re = CommitTicketUpdater.ticket_re
             if not any(int(tkt_id) == int(formatter.context.resource.id)
                        for tkt_id in ticket_re.findall(message)):
-                return tag.p(_("(The changeset message doesn't reference this "
-                               "ticket)"), class_='hint')
+                return tag.p(_("(The changeset message doesn't reference "
+                               "this ticket)"), class_='hint')
         if ChangesetModule(self.env).wiki_format_messages:
             return tag.div(format_to_html(self.env,
                 formatter.context.child('changeset', rev, parent=resource),
