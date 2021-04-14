@@ -6,13 +6,13 @@ import os
 from setuptools import setup
 
 setup(name='arsoft-trac-commitupdater',
-        version='0.17',
+        version='0.18',
         description='A plugin to update tickets within Trac when certain keywords are using in commit messages.',
         long_description = open(os.path.join(os.path.dirname(__file__), 'README.md')).read(),
         author='Andreas Roth',
         author_email='aroth@arsoft-online.com',
         url='http://www.arsoft-online.com/',
-        packages=['arsoft.trac.plugins.commitupdater'],
+        packages=['arsoft', 'arsoft.trac', 'arsoft.trac.plugins', 'arsoft.trac.plugins.commitupdater'],
         keywords = 'trac commit update ticket issue bug',
         license = 'BSD',
         classifiers = [
